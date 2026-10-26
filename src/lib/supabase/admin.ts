@@ -1,15 +1,14 @@
-import "server-only";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import 'server-only';
+import { createClient } from '@supabase/supabase-js';
+import { serverEnv } from '@/lib/env';
 
-/** Service-role access bypasses RLS. Import this module only from server-only trusted workflows. */
+/**
+ * SERVICE ROLE client: bypasses RLS. Server-only (the `server-only` import fails the build if it
+ * is ever bundled for the browser). Use only after an explicit authorization check.
+ */
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceRoleKey) {
-    throw new Error("Server-side Supabase service role is required for this trusted workflow.");
-  }
-  return createSupabaseClient(url, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-    global: { headers: { "X-Client-Info": "secure-lms-server-admin" } },
+  const env = serverEnv();
+  return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 }

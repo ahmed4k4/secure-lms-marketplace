@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedOrigins": ["http://localhost:3000", "https://YOUR-PRODUCTION-DOMAIN"],
+    "AllowedMethods": ["GET", "HEAD", "PUT"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["etag", "content-length", "content-range", "accept-ranges"],
+    "MaxAgeSeconds": 3600
+  }
+]

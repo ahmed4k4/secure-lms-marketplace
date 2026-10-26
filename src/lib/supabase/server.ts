@@ -1,9 +1,20 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { publicEnv } from '@/lib/env';
+
+/** Per-request client acting AS THE SIGNED-IN USER: Row Level Security applies. */
 export async function createClient() {
-  const cookieStore = await cookies();
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase environment variables are not configured.");
-  return createServerClient(url, key, { cookies: { getAll() { return cookieStore.getAll(); }, setAll(cookiesToSet) { try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); } catch { /* Server Components cannot write cookies; middleware refreshes them. */ } } } });
+  const store = await cookies();
+  return createServerClient(publicEnv.supabaseUrl, publicEnv.supabaseAnonKey, {
+    cookies: {
+      getAll: () => store.getAll(),
+      setAll: (list) => {
+        try {
+          list.forEach(({ name, value, options }) => store.set(name, value, options));
+        } catch {
+          /* called from a Server Component: middleware refreshes the session instead */
+        }
+      },
+    },
+  });
 }
