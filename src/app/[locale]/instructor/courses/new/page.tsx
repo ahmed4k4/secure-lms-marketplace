@@ -1,0 +1,6 @@
+import { CourseCreateForm } from "@/components/course-create-form";
+import { requireAnyRole } from "@/lib/server/auth";
+import { createClient } from "@/lib/supabase/server";
+export const metadata = { robots: { index: false, follow: false } };
+
+export default async function NewCoursePage({ params }: { params: Promise<{ locale: string }> }) { const { locale } = await params; await requireAnyRole(locale, ["instructor", "super_admin"]); const supabase = await createClient(); const { data: categories } = await supabase.from("categories").select("id,name_en,name_ar").order("sort_order", { ascending: true }); return <section className="section"><div className="container"><span className="eyebrow">{locale === "ar" ? "مساحة المدرس" : "INSTRUCTOR WORKSPACE"}</span><h1>{locale === "ar" ? "إنشاء كورس جديد" : "Create a new course"}</h1><p className="muted">{locale === "ar" ? "أكمل بيانات الكورس الأساسية. سيُحفظ كمسودة حتى تراجع المحتوى وترسله للإدارة." : "Complete the course basics. It will remain a draft until you finish the curriculum and submit it for review."}</p><div className="panel course-create-panel" style={{ marginTop: 22 }}><CourseCreateForm locale={locale} categories={(categories ?? []).map((item) => ({ id: item.id, nameEn: item.name_en, nameAr: item.name_ar }))} /></div></div></section>; }

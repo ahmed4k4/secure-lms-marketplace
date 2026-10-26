@@ -1,0 +1,5 @@
+import Link from "next/link";
+import { ResetPasswordForm } from "@/components/reset-password-form";
+export const metadata = { robots: { index: false, follow: false } };
+
+export default async function ResetPasswordPage({ params }: { params: Promise<{ locale: string }> }) { const { locale } = await params; const ar = locale === "ar"; return <section className="auth-wrap"><div className="container auth-layout"><aside className="auth-aside"><span className="eyebrow">{ar ? "أمان الحساب" : "ACCOUNT SECURITY"}</span><h1>{ar ? "اختار كلمة مرور قوية وجديدة." : "Choose a strong new password."}</h1><p>{ar ? "استخدم كلمة مرور فريدة لا تستخدمها في أي موقع آخر." : "Use a unique password you do not use on other websites."}</p></aside><div className="auth-card"><h2>{ar ? "تعيين كلمة المرور" : "Set a new password"}</h2><ResetPasswordForm locale={locale}/><p className="auth-bottom-link"><Link href={`/${locale}/sign-in`}>{ar ? "العودة لتسجيل الدخول" : "Back to sign in"}</Link></p></div></div></section>; }

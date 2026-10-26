@@ -1,0 +1,56 @@
+{
+  "name": "secure-lms-marketplace",
+  "version": "1.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "verify:static": "node scripts/verify-static.mjs",
+    "cleanup:r2-orphans": "node --env-file=.env.local scripts/cleanup-r2-orphans.mjs",
+    "bootstrap:super-admin": "node --env-file=.env.local scripts/bootstrap-super-admin.mjs --confirm-create",
+    "bootstrap:super-admin:resume": "node --env-file=.env.local scripts/bootstrap-super-admin.mjs --resume-existing",
+    "admin:reset-super-admin-password": "node --env-file=.env.local scripts/reset-super-admin-password.mjs",
+    "auth:diagnose": "node --env-file=.env.local scripts/diagnose-auth-user.mjs",
+    "auth:email-check": "node --env-file=.env.local scripts/check-auth-email-config.mjs",
+    "test:auth": "vitest run src/lib/auth-errors.test.ts src/lib/auth-redirects.test.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "0.7.0",
+    "@supabase/supabase-js": "2.57.0",
+    "clsx": "2.1.1",
+    "lucide-react": "0.468.0",
+    "next": "15.5.28",
+    "next-intl": "4.3.12",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.1.5",
+    "@aws-sdk/client-s3": "3.899.0",
+    "@aws-sdk/s3-request-presigner": "3.899.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.0",
+    "@testing-library/jest-dom": "6.8.0",
+    "@testing-library/react": "16.3.0",
+    "@types/node": "22.18.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "15.5.28",
+    "jsdom": "26.1.0",
+    "tailwindcss": "4.1.13",
+    "typescript": "5.9.2",
+    "vitest": "3.2.7",
+    "@tailwindcss/postcss": "4.1.13",
+    "@eslint/eslintrc": "3.3.7"
+  },
+  "engines": {
+    "node": ">=20.11.0",
+    "npm": ">=10.0.0"
+  }
+}
