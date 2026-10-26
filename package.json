@@ -1,8 +1,8 @@
 {
   "name": "lms-marketplace",
-  "version": "1.7.1",
+  "version": "1.9.1",
   "private": true,
-  "description": "Archai Academy LMS with course workflow fixes and optional timed learning controls",
+  "description": "Archai Academy LMS with protected HLS video, adaptive quality, wallet subscriptions and instructor settlements",
   "engines": {
     "node": ">=22.22.2"
   },
@@ -38,7 +38,8 @@
     "react-dom": "19.1.1",
     "server-only": "0.0.1",
     "tailwind-merge": "3.7.0",
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "hls.js": "1.7.3"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.10",

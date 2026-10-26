@@ -1,5 +1,5 @@
 import 'server-only';
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ApiError } from '@/lib/api-error';
 import { serverEnv } from '@/lib/env';
@@ -56,6 +56,37 @@ export async function deleteObject(key: string) {
   await r2().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));
 }
 
+export async function getObjectText(key: string) {
+  const result = await r2().send(new GetObjectCommand({ Bucket: bucket(), Key: key }));
+  return (await result.Body?.transformToString('utf-8')) ?? '';
+}
+
+export async function createMultipartUpload(key: string, contentType: string) {
+  const result = await r2().send(new CreateMultipartUploadCommand({
+    Bucket: bucket(), Key: key, ContentType: contentType,
+    CacheControl: 'private, no-store', Metadata: { purpose: 'private-course-video-source' },
+  }));
+  if (!result.UploadId) throw new ApiError(502, 'R2_MULTIPART_START_FAILED', 'Could not initialize the video upload.');
+  return result.UploadId;
+}
+
+export async function presignUploadPart(input: { key: string; uploadId: string; partNumber: number; expiresIn?: number }) {
+  return getSignedUrl(r2(), new UploadPartCommand({
+    Bucket: bucket(), Key: input.key, UploadId: input.uploadId, PartNumber: input.partNumber,
+  }), { expiresIn: input.expiresIn ?? 900 });
+}
+
+export async function completeMultipartUpload(input: { key: string; uploadId: string; parts: Array<{ ETag: string; PartNumber: number }> }) {
+  return r2().send(new CompleteMultipartUploadCommand({
+    Bucket: bucket(), Key: input.key, UploadId: input.uploadId,
+    MultipartUpload: { Parts: input.parts.map((part) => ({ ETag: part.ETag, PartNumber: part.PartNumber })) },
+  }));
+}
+
+export async function abortMultipartUpload(key: string, uploadId: string) {
+  return r2().send(new AbortMultipartUploadCommand({ Bucket: bucket(), Key: key, UploadId: uploadId }));
+}
+
 
 /** Validates that public cover assets use a real URL and a bucket separate from private lesson media. */
 function validatedCoverBaseUrl() {
@@ -74,7 +105,7 @@ function validatedCoverBaseUrl() {
   return `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
 }
 
-const COVER_KEY_PATTERN = /^covers\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/i;
+const COVER_KEY_PATTERN = /^(?:covers|avatars)\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/i;
 function assertCoverKey(key: string) {
   if (!COVER_KEY_PATTERN.test(key)) throw new ApiError(400, 'INVALID_COVER_KEY', 'Invalid cover object key.');
 }

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import 'server-only';
 import { ApiError, type ApiUser } from '@/lib/api';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -7,7 +8,7 @@ import { audit } from '@/lib/audit';
 import { serverEnv } from '@/lib/env';
 import { clientIp, hashIp, watermarkId } from '@/lib/security';
 import { RESOURCE_TYPES, VIDEO_TYPES, resourceKey, sniffMatchesType, sniffVideo, videoKey } from '@/lib/media-rules';
-import { deleteObject, headObject, presignGet, presignPut, readHead } from '@/lib/r2';
+import { abortMultipartUpload, createMultipartUpload, deleteObject, headObject, presignPut, readHead } from '@/lib/r2';
 import type { z } from 'zod';
 import type { uploadRequestSchema } from '@/lib/validation';
 
@@ -52,9 +53,26 @@ export async function createUploadSession(ctx: ApiUser, input: UploadRequest) {
       duration_seconds: input.durationSeconds ?? null, status: 'pending_upload', uploaded_by: ctx.user.id,
     });
     if (error) throw new ApiError(500, 'DB_ERROR', 'Could not start the upload.');
+    const multipartThreshold = 100 * MB;
+    await audit({ actorId: ctx.user.id, action: 'media.upload_started', entityType: 'lesson', entityId: input.lessonId, metadata: { kind: 'video', sizeBytes: input.sizeBytes, multipart: input.sizeBytes > multipartThreshold } });
+    if (input.sizeBytes > multipartThreshold) {
+      let r2UploadId = '';
+      try {
+        r2UploadId = await createMultipartUpload(key, input.contentType);
+        const { data: session, error: sessionError } = await admin.from('video_upload_sessions').insert({
+          lesson_id: input.lessonId, object_key: key, r2_upload_id: r2UploadId, created_by: ctx.user.id,
+          expected_size: input.sizeBytes, content_type: input.contentType,
+        }).select('id').single();
+        if (sessionError || !session) throw new Error('Could not persist multipart session.');
+        const partSizeBytes = 64 * MB;
+        return { uploadId: input.lessonId, mode: 'multipart' as const, multipartSessionId: session.id, partSizeBytes, partCount: Math.ceil(input.sizeBytes / partSizeBytes), expiresInSeconds: 900 };
+      } catch {
+        if (r2UploadId) await abortMultipartUpload(key, r2UploadId).catch(() => undefined);
+        throw new ApiError(503, 'MULTIPART_START_FAILED', 'Could not start the large video upload. Please retry.');
+      }
+    }
     const url = await presignPut({ key, contentType: input.contentType, sizeBytes: input.sizeBytes, expiresIn: 900 });
-    await audit({ actorId: ctx.user.id, action: 'media.upload_started', entityType: 'lesson', entityId: input.lessonId, metadata: { kind: 'video', sizeBytes: input.sizeBytes } });
-    return { uploadId: input.lessonId, url, headers: { 'Content-Type': input.contentType }, expiresInSeconds: 900 };
+    return { uploadId: input.lessonId, mode: 'single' as const, url, headers: { 'Content-Type': input.contentType }, expiresInSeconds: 900 };
   }
 
   // resource
@@ -101,7 +119,17 @@ export async function confirmUpload(ctx: ApiUser, kind: 'video' | 'resource', id
     await fail(422, 'NOT_A_VIDEO', 'The file does not look like a valid video.');
   }
 
-  await admin.from(table).update(kind === 'video' ? { status: 'ready', verified_at: new Date().toISOString() } : { status: 'ready' }).eq(kind === 'video' ? 'lesson_id' : 'id', id);
+  await admin.from(table).update(kind === 'video' ? { status: 'ready', verified_at: new Date().toISOString(), processing_status: 'queued', stream_manifest_key: null, processing_error: null } : { status: 'ready' }).eq(kind === 'video' ? 'lesson_id' : 'id', id);
+  if (kind === 'video') {
+    const { data: video } = await admin.from('lesson_videos').select('object_key').eq('lesson_id', id).maybeSingle();
+    if (video?.object_key) {
+      const { error: queueError } = await admin.from('video_transcode_jobs').insert({ lesson_id: id, source_key: video.object_key, output_prefix: `hls/${id}/${randomUUID()}` });
+      if (queueError) {
+        await admin.from('lesson_videos').update({ processing_status: 'failed', processing_error: 'Could not enqueue HLS transcode job.' }).eq('lesson_id', id);
+        throw new ApiError(503, 'TRANSCODE_QUEUE_UNAVAILABLE', 'Video uploaded, but processing could not be queued. Contact the administrator.');
+      }
+    }
+  }
   if (kind === 'video' && durationSeconds && durationSeconds <= settings.max_video_minutes * 60) {
     await admin.from('lesson_videos').update({ duration_seconds: durationSeconds }).eq('lesson_id', id);
     await admin.from('lessons').update({ duration_seconds: durationSeconds }).eq('id', id);
@@ -136,8 +164,10 @@ export async function issuePlayback(ctx: ApiUser, lessonId: string, sessionId: s
   const now = Date.now();
   if (lessonWindow?.availability_starts_at && now < Date.parse(lessonWindow.availability_starts_at)) throw new ApiError(403, 'LESSON_NOT_OPEN', 'This lesson is not available yet.');
   if (lessonWindow?.availability_ends_at && now >= Date.parse(lessonWindow.availability_ends_at)) throw new ApiError(403, 'LESSON_CLOSED', 'The availability window for this lesson has ended.');
-  const { data: video } = await admin.from('lesson_videos').select('object_key, status').eq('lesson_id', lessonId).maybeSingle();
+  const { data: video } = await admin.from('lesson_videos').select('object_key, status, processing_status, stream_manifest_key').eq('lesson_id', lessonId).maybeSingle();
   if (!video || video.status !== 'ready') throw new ApiError(409, 'VIDEO_NOT_READY', 'This video is not available yet.');
+  if (video.processing_status === 'failed') throw new ApiError(409, 'VIDEO_PROCESSING_FAILED', 'Video processing failed. Please contact the course instructor.');
+  if (video.processing_status !== 'ready' || !video.stream_manifest_key) throw new ApiError(409, 'VIDEO_PROCESSING', 'The uploaded video is being converted for adaptive playback. Please try again later.');
 
   const settings = await getSettings();
   const ipHash = hashIp(clientIp(headers), secret);
@@ -168,7 +198,8 @@ export async function issuePlayback(ctx: ApiUser, lessonId: string, sessionId: s
     await audit({ actorId: ctx.user.id, action: 'playback.grant', entityType: 'lesson', entityId: lessonId });
   }
 
-  const ttl = settings.signed_url_ttl_seconds;
-  const url = await presignGet({ key: video.object_key, expiresIn: ttl, disposition: 'inline' });
-  return { url, ttlSeconds: ttl, expiresAt: new Date(Date.now() + ttl * 1000).toISOString(), watermark: lessonWindow?.watermark_enabled === false ? '' : `ID-${watermarkId(ctx.user.id, secret)}`, seekAllowed: lessonWindow?.seek_allowed !== false };
+  const ttl = Math.min(settings.signed_url_ttl_seconds, 90);
+  // The master manifest is same-origin and re-authorized on every request. The browser never receives the source MP4 key.
+  const url = `/api/lessons/${lessonId}/hls/master.m3u8?sessionId=${encodeURIComponent(sessionId)}`;
+  return { url, ttlSeconds: ttl, expiresAt: new Date(Date.now() + ttl * 1000).toISOString(), streamType: 'hls' as const, watermark: settings.watermark_enforced || lessonWindow?.watermark_enabled !== false ? `ID-${watermarkId(ctx.user.id, secret)}` : '', captureDeterrenceEnabled: settings.capture_deterrence_enabled, seekAllowed: lessonWindow?.seek_allowed !== false };
 }

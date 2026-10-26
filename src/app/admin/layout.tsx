@@ -8,7 +8,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const items = [
     ['/admin', 'admin.overview'], ['/admin/instructors', 'admin.instructors'], ['/admin/users', 'admin.users'], ['/admin/courses', 'admin.courses'],
     ['/admin/entitlements', 'admin.entitlements'], ['/admin/categories', 'admin.categories'], ['/admin/reviews', 'admin.reviews'],
-    ['/admin/roles', 'admin.roles'], ['/admin/settings', 'admin.settings'], ['/admin/audit', 'admin.audit'],
+    ['/admin/roles', 'admin.roles'], ['/admin/settings', 'admin.settings'], ['/admin/finance', 'admin.finance'], ['/admin/audit', 'admin.audit'],
   ] as const;
   return (
     <div className="space-y-6">

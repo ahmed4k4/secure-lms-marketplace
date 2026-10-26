@@ -10,7 +10,7 @@ export async function updateProfileAction(_: ActionState, formData: FormData): P
   const { t } = await getT();
   const p = parseForm(profileSchema, formData);
   if (!p.ok) return { error: t('err.invalid_input') };
-  const { error } = await supabase.from('profiles').update({ full_name: p.data.fullName, locale: p.data.locale }).eq('id', user.id);
+  const { error } = await supabase.from('profiles').update({ full_name: p.data.fullName, locale: p.data.locale, avatar_url: p.data.avatarUrl ?? null }).eq('id', user.id);
   if (error) return { error: t('err.generic') };
   revalidatePath('/', 'layout');
   return ok('msg.saved');

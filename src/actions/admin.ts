@@ -211,7 +211,7 @@ export async function hideReviewAction(reviewId: string, hide: boolean): Promise
 }
 
 export async function saveSettingsAction(_: ActionState, formData: FormData): Promise<ActionState> {
-  const { admin, user } = await requirePermission('settings.manage');
+  const { admin, user } = await requirePermission('admins.manage');
   const p = parseForm(settingsSchema, formData);
   if (!p.ok) return fail('err.invalid_input');
   const rows = Object.entries(p.data).map(([key, value]) => ({ key, value, updated_by: user.id, updated_at: new Date().toISOString() }));

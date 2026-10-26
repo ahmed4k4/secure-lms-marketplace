@@ -35,7 +35,7 @@ export const getAuth = cache(async () => {
   if (!user) return { supabase, user: null, profile: null, roles: [] as string[] };
   const load = () =>
     Promise.all([
-      supabase.from('profiles').select('id, full_name, locale, status').eq('id', user!.id).maybeSingle(),
+      supabase.from('profiles').select('id, full_name, avatar_url, locale, status').eq('id', user!.id).maybeSingle(),
       supabase.from('user_roles').select('roles(key)').eq('user_id', user!.id),
     ]);
   let [{ data: profile }, { data: roleRows }] = await load();

@@ -21,7 +21,7 @@ export async function SiteHeader() {
     hasUnread = Boolean(data?.length);
   }
   const links: { href: string; label: string }[] = [{ href: '/courses', label: t('nav.courses') }];
-  if (user) links.push({ href: '/dashboard', label: t('nav.my_learning') });
+  if (user) links.push({ href: '/dashboard', label: t('nav.my_learning') }, { href: '/wallet', label: 'المحفظة' });
   if (roles.includes('instructor')) links.push({ href: '/instructor', label: t('nav.instructor') });
   if (isAdminRole(roles)) links.push({ href: '/admin', label: t('nav.admin') });
 

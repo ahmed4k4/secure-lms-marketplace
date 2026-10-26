@@ -66,8 +66,19 @@ assert(read('tests/db/rls.test.ts').includes('expect(rows.rows[0]).toEqual({ n: 
 assert(read('src/actions/admin.ts').includes('[admin.course-review] update failed'), 'Course review must log safe diagnostics when privileged status updates fail.');
 assert(read('src/actions/admin.ts').includes('course.category_request_id || !course.category_id'), 'Course publication must be blocked while category approval is incomplete.');
 assert(read('src/actions/admin.ts').includes("admin.from('instructor_profiles').select('status')"), 'Course publication must require an active instructor.');
-
-
+assert(fs.existsSync('supabase/migrations/0017_wallet_and_revenue.sql'), 'wallet/revenue migration missing');
+assert(fs.existsSync('src/app/wallet/page.tsx'), 'wallet page missing');
+assert(fs.existsSync('src/app/admin/wallets/page.tsx'), 'admin wallet page missing');
+assert(fs.existsSync('src/api/account/avatar/route.ts') || fs.existsSync('src/app/api/account/avatar/route.ts'), 'avatar upload route missing');
+assert(fs.existsSync('supabase/migrations/0018_hls_transcoding_and_playback_audit.sql'), 'HLS and playback audit migration missing');
+assert(fs.existsSync('supabase/migrations/0019_wallet_subscriptions_payouts_refunds.sql'), 'subscription and finance migration missing');
+assert(fs.existsSync('supabase/migrations/0020_video_controls_and_finance_hardening.sql'), 'video controls and finance hardening migration missing');
+assert(read('src/components/video-player.tsx').includes("import('hls.js')") && read('src/components/video-player.tsx').includes('currentLevel = next'), 'Video player must load HLS and support quality selection.');
+assert(read('workers/transcoder/transcode.mjs').includes("'-hls_playlist_type', 'vod'") && read('workers/transcoder/transcode.mjs').includes('heartbeat_at'), 'Transcoder must produce HLS VOD and maintain queue heartbeats.');
+assert(read('src/app/admin/settings/page.tsx').includes('hls_max_height') && read('src/actions/admin.ts').includes("requirePermission('admins.manage')"), 'Only the Super Admin should control global video processing/security settings.');
+assert(fs.existsSync('src/app/admin/finance/page.tsx') && read('src/app/admin/finance/page.tsx').includes('reviewPayoutAction'), 'Admin finance review console missing.');
+assert(read('src/app/api/cron/maintenance/route.ts').includes("admin.rpc('renew_wallet_subscriptions')") && read('src/app/api/cron/maintenance/route.ts').includes("admin.rpc('settle_instructor_earnings'"), 'Daily maintenance must renew wallet subscriptions and settle eligible earnings.');
+assert(fs.existsSync('src/app/api/uploads/multipart/abort/route.ts'), 'Multipart upload cleanup endpoint missing.');
 
 const tsFiles = walk('src');
 if (errors.length) {
@@ -75,5 +86,6 @@ if (errors.length) {
   for (const error of errors) console.error(`- ${error}`);
   process.exitCode = 1;
 } else {
-  console.log(`Static verification passed: ${tsFiles.length} TypeScript/TSX files, ${migrations.length} SQL migrations, bilingual dictionary parity, no application MFA/TOTP, single-role constraint, rate-limited same-origin cover upload, category hold workflow, free/one-time/subscription plan configuration, and responsive search and performance paths, repaired admin account directory, instructor-owned admin course creation, assessment dashboard checks, and explicit server-only service_role grants. This is not a substitute for typecheck, SQL integration tests, lint, or production build.`);
+  console.log(`Static verification passed: ${tsFiles.length} TypeScript/TSX files, ${migrations.length} SQL migrations, bilingual dictionary parity, no application MFA/TOTP, single-role constraint, rate-limited same-origin cover upload, category hold workflow, free/one-time/subscription plan configuration, and responsive search and performance paths, repaired admin account directory, instructor-owned admin course creation, assessment dashboard checks, HLS transcoding and rendition selection, Super Admin video controls, multi-currency payout reservations, wallet subscriptions/refunds, finance-console, heartbeat-recovery, and daily renewal/settlement checks; explicit server-only service_role grants. This is not a substitute for typecheck, SQL integration tests, lint, or production build.`);
 }
+

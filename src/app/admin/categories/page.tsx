@@ -21,7 +21,7 @@ export default async function AdminCategories() {
   );
   return (
     <div className="space-y-6">
-      <header><p className="font-mono text-xs tracking-widest text-arc">// TAXONOMY</p><h1 className="mt-2 text-3xl font-semibold">{t('admin.categories')}</h1><p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t('course.new_category_hint')}</p></header>
+      <header><p className="font-mono text-xs tracking-widest text-arc">TAXONOMY</p><h1 className="mt-2 text-3xl font-semibold">{t('admin.categories')}</h1><p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t('course.new_category_hint')}</p></header>
       <section className="space-y-3" aria-labelledby="category-requests">
         <div className="flex items-center justify-between gap-3"><h2 id="category-requests" className="text-xl font-semibold">{t('admin.category_requests')}</h2><Badge tone={requests?.length ? 'warn' : 'neutral'}>{requests?.length ?? 0}</Badge></div>
         {requests?.length ? requests.map((request: any) => {

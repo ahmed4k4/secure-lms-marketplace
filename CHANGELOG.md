@@ -1,3 +1,31 @@
+## 1.9.1 — compile, lint, and RLS fixture repairs
+
+- Fixed finance console button variants to use the supported design-system variant.
+- Fixed the missing `Input` import in the wallet refund request form.
+- Replaced the unsupported JSX Picture-in-Picture event prop with a lifecycle-managed native video listener; renamed the dynamic HLS import variable and clarified effect dependencies.
+- Fixed the publishing workflow test fixture to assign an existing approved category before submitting a draft for review.
+- Removed unused imports/variables reported by ESLint.
+- Includes the account `avatar_url` profile typing correction and role-fixture correction from the prior fixes.
+- Static verification passes. Full typecheck, lint, unit/RLS tests and production build must still be rerun after installing dependencies under Node 22.22.2 or newer.
+
+## 1.9.0 — Adaptive video, capture deterrence, and finance operations
+
+- Added multipart uploads for large video files and a private FFmpeg/HLS transcoder worker with queued retries and heartbeats.
+- Added authorized same-origin HLS manifests, short-lived segment URLs, selectable renditions, moving account watermarks, capture-deterrence signals, and playback security-event telemetry. These controls are deterrence, not DRM and cannot guarantee blocking OS-level screen capture.
+- Added Super Admin settings for required watermarking, browser capture deterrence, HLS maximum output quality, and stream/storage controls.
+- Added wallet-funded monthly/yearly subscriptions with scheduled renewals and past-due handling, instructor payout reservations, reviewed refund workflows, and daily reconciliation/earning settlement.
+- Added a finance console and instructor earnings/payout pages. External payment-provider refunds and bank/provider payouts require the operator to execute the transaction externally and record its real reference; provider APIs, DRM, tax, and chargeback automation are not included.
+- Added migration `0018_hls_transcoding_and_playback_audit.sql`, `0019_wallet_subscriptions_payouts_refunds.sql`, and `0020_video_controls_and_finance_hardening.sql`.
+- Static validation and TypeScript syntax transpilation pass. Full dependency install, typecheck, lint, automated tests, production build, and live database migration/integration tests remain to be run in a Node `22.22.2` staging environment.
+
+## 1.7.2 — Lint fixes and instructor profile photo field
+
+- Fixed JSX comment-like text in the account security and admin categories headings, resolving `react/jsx-no-comment-textnodes`.
+- Removed the unused `buttonVariants` import from the admin overview.
+- Added an HTTPS profile-photo URL field to the account profile form, validated on the server and stored in the existing `profiles.avatar_url` column.
+- Displayed the instructor avatar on the public instructor page, with initials as a fallback.
+- Verification: static verification passed. Full ESLint/typecheck/test/build require dependencies installed under Node 22.22.2 or newer and were not run in this packaging environment.
+
 ## 1.7.1 — TypeScript build fixes
 
 - Made `ActionForm` children optional so action-only forms (for example, sign out other sessions and approve a category request) typecheck without artificial visible fields.

@@ -18,7 +18,7 @@ The app validates server variables lazily with zod (clear error on first use rat
 1. Push to GitHub; import the repo in Vercel (framework: Next.js; Node 22).
 2. Add env vars to *Production* and *Preview*. Use a separate Supabase project and R2 bucket for staging.
 3. Add the preview/production origins to Supabase redirect URLs and R2 CORS.
-4. `vercel.json` schedules the daily maintenance cron (free tier allows daily). It: marks lapsed entitlements `expired`, deletes abandoned/failed uploads from R2 and DB, prunes `playback_sessions` > 2 d, `rate_limits` > 1 d and `playback.grant` audit rows > 90 d.
+4. `vercel.json` schedules daily `/api/cron/maintenance` (free tier allows daily). It expires lapsed entitlements, renews wallet subscriptions, settles earnings older than seven days, records a finance reconciliation snapshot, deletes abandoned/failed uploads, prunes old playback sessions/rate limits and old `playback.grant` audit rows. Inspect the response fields and server logs for `financeErrors` after deployment.
 5. Vercel function limits: uploads/downloads bypass functions (direct to R2), so request duration is not a constraint for video.
 
 ## Migrations
@@ -62,3 +62,6 @@ The app validates server variables lazily with zod (clear error on first use rat
 2. Rotate any exposed secret (above) and redeploy.
 3. Review audit logs; export with SQL (`select * from audit_logs where created_at > …`).
 4. Notify affected users as legally required.
+
+
+Adaptive HLS worker, Super Admin video settings, wallet subscription renewal, external refund recording and instructor payout lifecycle: see [`VIDEO_AND_FINANCE_1.9.0.md`](./VIDEO_AND_FINANCE_1.9.0.md).

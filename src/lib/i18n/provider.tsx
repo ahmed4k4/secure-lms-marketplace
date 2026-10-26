@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, type ReactNode } from 'react';
 import type { DictKey, Locale } from './shared';
 
 type Ctx = { locale: Locale; dict: Record<string, string> };
@@ -11,9 +11,9 @@ export function I18nProvider({ locale, dict, children }: { locale: Locale; dict:
 
 export function useT() {
   const { locale, dict } = useContext(I18nContext);
-  const t = (key: DictKey, vars?: Record<string, string | number>) => {
+  const t = useCallback((key: DictKey, vars?: Record<string, string | number>) => {
     const raw = dict[key] ?? key;
     return vars ? raw.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? '')) : raw;
-  };
+  }, [dict]);
   return { t, locale };
 }

@@ -22,7 +22,11 @@ export const registerSchema = z.object({
 export const emailSchema = z.object({ email: z.string().trim().email().max(254) });
 export const newPasswordSchema = z.object({ password: z.string().min(10).max(72) });
 
-export const profileSchema = z.object({ fullName: trimmed(2, 100), locale: z.enum(['en', 'ar']) });
+export const profileSchema = z.object({
+  fullName: trimmed(2, 100),
+  locale: z.enum(['en', 'ar']),
+  avatarUrl: z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? undefined : v), z.string().trim().url().regex(/^https:\/\//i).max(2048).optional()),
+});
 export const instructorProfileSchema = z.object({
   headline: optionalText(160),
   bio: optionalText(4000),
@@ -147,6 +151,9 @@ export const rejectSchema = z.object({ reason: trimmed(3, 1000) });
 export const roleChangeSchema = z.object({ userId: uuid, role: z.enum(['student', 'instructor', 'admin']) });
 export const settingsSchema = z.object({
   sharing_block: checkbox,
+  watermark_enforced: checkbox,
+  capture_deterrence_enabled: checkbox,
+  hls_max_height: z.coerce.number().int().refine((n) => [360, 480, 720, 1080].includes(n), 'Choose 360, 480, 720 or 1080.'),
   max_concurrent_streams: z.coerce.number().int().min(1).max(10),
   sharing_ip_threshold: z.coerce.number().int().min(2).max(50),
   signed_url_ttl_seconds: z.coerce.number().int().min(60).max(7200),

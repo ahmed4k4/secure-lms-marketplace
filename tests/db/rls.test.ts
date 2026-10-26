@@ -19,6 +19,10 @@ beforeAll(async () => {
     await q(`insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, $3)`,
       [id(i), `${email}@example.test`, JSON.stringify({ full_name: `User ${email}`, locale: 'ar' })]);
   }
+  // The auth.users trigger assigns every new account the least-privileged student role.
+  // Replace that default role before assigning the intended fixture role, preserving the
+  // database invariant that each account has exactly one platform role.
+  await q(`delete from user_roles where user_id = any($1::uuid[])`, [[ADMIN, INSTR_A, INSTR_B]]);
   await q(`insert into user_roles (user_id, role_id) select $1, id from roles where key = 'super_admin'`, [ADMIN]);
   for (const u of [INSTR_A, INSTR_B]) {
     await q(`insert into user_roles (user_id, role_id) select $1, id from roles where key = 'instructor'`, [u]);
@@ -27,10 +31,10 @@ beforeAll(async () => {
   await q(`insert into categories (id, slug, name_en, name_ar) values ($1,'existing-category-test','Existing category','تصنيف موجود')`, [EXISTING_CATEGORY]);
   await q(`insert into category_requests (id, slug, name_en, name_ar, requested_by, status) values ($1,'proposed-category-test','Proposed category','تصنيف مقترح',$2,'pending')`, [REQ_CATEGORY, INSTR_A]);
   await q(`insert into courses (id, slug, title, status, access_type, created_by, category_request_id) values ($1,'category-hold','Course waiting on category','draft','free',$2,$3)`, [C_CATEGORY_HOLD, INSTR_A, REQ_CATEGORY]);
-  await q(`insert into courses (id, slug, title, status, access_type, created_by, published_at) values
-    ($1,'free-a','Free course A','published','free',$4, now()),
-    ($2,'draft-a','Draft course A','draft','free',$4, null),
-    ($3,'paid-b','Paid course B','published','paid',$5, now())`, [C_FREE_A, C_DRAFT_A, C_PAID_B, INSTR_A, INSTR_B]);
+  await q(`insert into courses (id, slug, title, status, access_type, created_by, published_at, category_id) values
+    ($1,'free-a','Free course A','published','free',$4, now(), null),
+    ($2,'draft-a','Draft course A','draft','free',$4, null, $6),
+    ($3,'paid-b','Paid course B','published','paid',$5, now(), null)`, [C_FREE_A, C_DRAFT_A, C_PAID_B, INSTR_A, INSTR_B, EXISTING_CATEGORY]);
   await q(`insert into courses (id, slug, title, status, access_type, created_by) values ($1,'pricing-test','Pricing test course','draft','free',$2)`, [C_PRICING, INSTR_A]);
   await q(`insert into sections (id, course_id, title) values ($1,$2,'Intro')`, [SEC_A, C_FREE_A]);
   await q(`insert into lessons (id, section_id, title, is_free_preview) values ($1,$2,'Preview',true), ($3,$2,'Locked',false)`, [L_PREVIEW, SEC_A, L_LOCKED]);

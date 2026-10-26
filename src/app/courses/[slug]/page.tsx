@@ -10,6 +10,7 @@ import { Alert, Badge, Card, CardBody, Select, Textarea } from '@/components/ui/
 import { Button, buttonVariants } from '@/components/ui/button';
 import { ActionForm, Field } from '@/components/action-form';
 import { enrollFreeAction, reviewAction } from '@/actions/learning';
+import { buyCourseWithWalletAction, buySubscriptionWithWalletAction } from '@/actions/wallet';
 import { cn, formatCount, formatDate, formatDuration, formatHM, formatPrice, initials } from '@/lib/utils';
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ error?: string }> };
@@ -35,7 +36,7 @@ export default async function CoursePage({ params, searchParams }: Props) {
     supabase.from('sections').select('id, title, position, lessons(id, title, type, position, is_free_preview, duration_seconds)').eq('course_id', course.id).order('position'),
     supabase.from('public_reviews').select('id, rating, comment, created_at, reviewer_name, is_mine').eq('course_id', course.id).order('created_at', { ascending: false }).limit(100),
     supabase.from('public_instructors').select('id, full_name, headline, bio').eq('id', course.created_by).maybeSingle(),
-    supabase.from('products').select('pricing_plans(access_days, active)').eq('course_id', course.id).maybeSingle(),
+    supabase.from('products').select('pricing_plans(id, access_days, active, kind, billing_interval, amount_cents, currency)').eq('course_id', course.id).maybeSingle(),
   ]);
 
   let hasAccess = false, canManage = false;
@@ -50,7 +51,10 @@ export default async function CoursePage({ params, searchParams }: Props) {
   const totalSeconds = secs.reduce((n, s) => n + s.lessons.reduce((m, l) => m + (l.duration_seconds ?? 0), 0), 0);
   const units = { h: t('unit.h'), m: t('unit.m') };
   const category = locale === 'ar' ? catalog?.category_name_ar : catalog?.category_name_en;
-  const accessDays = ((product?.pricing_plans ?? []) as { access_days: number | null; active: boolean }[]).find((p) => p.active)?.access_days ?? null;
+  const activePlans = ((product?.pricing_plans ?? []) as { id: string; access_days: number | null; active: boolean; kind: string; billing_interval?: string | null; amount_cents: number; currency: string }[]).filter((p) => p.active);
+  const activePlan = activePlans.find((p) => p.kind === 'one_time');
+  const subscriptionPlan = activePlans.find((p) => p.kind === 'subscription');
+  const accessDays = activePlans.find((p) => p.kind !== 'free')?.access_days ?? null;
   const dist = [5, 4, 3, 2, 1].map((n) => ({ n, c: (reviews ?? []).filter((r) => r.rating === n).length }));
   const distTotal = Math.max(1, reviews?.length ?? 0);
   const price = course.access_type === 'free' ? t('course.free') : `${formatPrice(catalog?.price_cents, catalog?.currency ?? 'USD', locale)}${catalog?.price_kind === 'subscription' ? ` ${catalog.billing_interval === 'year' ? t('course.per_year') : t('course.per_month')}` : ''}`;
@@ -67,6 +71,19 @@ export default async function CoursePage({ params, searchParams }: Props) {
   ) : course.access_type === 'free' ? (
     user ? <form action={enrollFreeAction.bind(null, course.id, course.slug)}><Button size="lg" className="w-full">{t('course.enroll_free')}</Button></form>
       : <Link href={`/login?next=${encodeURIComponent(`/courses/${course.slug}`)}`} className={cn(buttonVariants({ size: 'lg' }), 'w-full')}>{t('course.login_to_enroll')}</Link>
+  ) : user && (activePlan || subscriptionPlan) ? (
+    <div className="space-y-3">
+      {activePlan && <ActionForm action={buyCourseWithWalletAction} submitLabel="شراء نهائي من المحفظة" className="space-y-2">
+        <input type="hidden" name="planId" value={activePlan.id} />
+        <p className="text-xs text-muted-foreground">شراء لمرة واحدة: {formatPrice(activePlan.amount_cents, activePlan.currency, locale)}. سيبقى الوصول وفق مدة الخطة.</p>
+      </ActionForm>}
+      {subscriptionPlan && <ActionForm action={buySubscriptionWithWalletAction} submitLabel={`اشتراك من المحفظة — ${formatPrice(subscriptionPlan.amount_cents, subscriptionPlan.currency, locale)} / ${subscriptionPlan.billing_interval === 'year' ? 'سنة' : 'شهر'}`} className="space-y-2">
+        <input type="hidden" name="planId" value={subscriptionPlan.id} />
+        <p className="text-xs text-muted-foreground">يتجدد الاشتراك تلقائيًا من المحفظة عند الموعد طالما الرصيد كافٍ، ويمكنك إلغاء التجديد من صفحة المحفظة.</p>
+      </ActionForm>}
+      <Link href={`/checkout/${course.slug}`} className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'w-full')}>{t(catalog?.price_kind === 'subscription' ? 'course.subscribe' : 'course.buy')}</Link>
+      <Link href="/wallet" className="block text-center text-sm text-primary underline">عرض رصيد المحفظة والاشتراكات</Link>
+    </div>
   ) : (
     <Link href={`/checkout/${course.slug}`} className={cn(buttonVariants({ variant: 'accent', size: 'lg' }), 'w-full')}>{t(catalog?.price_kind === 'subscription' ? 'course.subscribe' : 'course.buy')}</Link>
   );

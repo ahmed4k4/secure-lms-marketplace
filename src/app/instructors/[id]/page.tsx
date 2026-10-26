@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
@@ -22,7 +23,7 @@ export default async function InstructorPage({ params }: { params: Promise<{ id:
       <header className="chrome-edge relative overflow-hidden rounded-lg !bg-deep p-6 md:p-10">
         <Bus className="absolute inset-y-0 end-0 hidden h-full w-1/2 opacity-40 md:block" accent={false} />
         <div className="relative flex flex-wrap items-start gap-5">
-          <span aria-hidden className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-2 border-arc bg-card font-display text-2xl font-semibold text-arc">{initials(instructor.full_name)}</span>
+          <span aria-hidden className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-arc bg-card font-display text-2xl font-semibold text-arc">{instructor.avatar_url ? <Image src={instructor.avatar_url} alt="" fill unoptimized sizes="80px" className="object-cover" /> : initials(instructor.full_name)}</span>
           <div className="min-w-0 flex-1">
             <MonoLabel>{'// INSTRUCTOR'}</MonoLabel>
             <h1 className="mt-1 text-3xl md:text-4xl">{instructor.full_name}</h1>

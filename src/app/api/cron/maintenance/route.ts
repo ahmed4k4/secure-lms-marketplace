@@ -19,7 +19,13 @@ export const GET = handle(
     const admin = createAdminClient();
     const day = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
 
-    const { data: expired } = await admin.rpc('expire_entitlements');
+    const { data: expired, error: expiryError } = await admin.rpc('expire_entitlements');
+    const { data: renewalData, error: renewalError } = await admin.rpc('renew_wallet_subscriptions');
+    const settlementCutoff = day(7);
+    const { data: settlementData, error: settlementError } = await admin.rpc('settle_instructor_earnings', { p_cutoff: settlementCutoff, p_actor_id: null });
+    if (expiryError || renewalError || settlementError) {
+      console.error('[cron:maintenance:finance]', JSON.stringify({ expiry: expiryError?.message, renewal: renewalError?.message, settlement: settlementError?.message }));
+    }
 
     let purged = 0;
     for (const table of ['lesson_videos', 'lesson_resources'] as const) {
@@ -33,7 +39,7 @@ export const GET = handle(
     await admin.from('playback_sessions').delete().lt('last_seen_at', day(2));
     await admin.from('rate_limits').delete().lt('window_start', day(1));
     await admin.from('audit_logs').delete().eq('action', 'playback.grant').lt('created_at', day(90));
-    return json({ ok: true, expiredEntitlements: expired ?? 0, purgedUploads: purged });
+    return json({ ok: !expiryError && !renewalError && !settlementError, expiredEntitlements: expired ?? 0, subscriptionRenewals: renewalData ?? null, settlement: settlementData ?? null, financeErrors: { expiry: expiryError?.message ?? null, renewal: renewalError?.message ?? null, settlement: settlementError?.message ?? null }, purgedUploads: purged });
   },
   { csrf: false },
 );
